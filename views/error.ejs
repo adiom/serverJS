@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= title %></title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+</head>
+<body class="bg-gray-100 min-h-screen flex flex-col items-center justify-center">
+    <!-- Header -->
+    <%- include('partials/header') %>
+
+    <!-- Main Content -->
+    <!-- Основное содержимое -->
+    <main class="flex-1 w-full max-w-md p-4">
+        <div class="max-w-md w-full bg-white shadow-lg rounded-lg p-8">
+            <h1 class="text-2xl font-bold text-center mb-6">Заголовок: <%= title %></h1>
+            <p class="text-center mb-4">Неправильный код</p>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <%- include('partials/footer') %>
+</body>
+</html>

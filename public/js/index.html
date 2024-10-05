@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Page Editor</title>
+  <link rel="stylesheet" href="/css/styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/bip39@3.0.2"></script>
+</head>
+<body class="bg-gray-100">
+
+  <div class="min-h-screen flex items-center justify-center">
+    <div class="max-w-md w-full bg-white shadow-lg rounded-lg p-8">
+      <h1 class="text-2xl font-bold text-center mb-6">Access Page</h1>
+      
+      <label for="seed-phrase" class="block text-gray-700 mb-2">Enter 12-word Seed Phrase</label>
+      <input type="text" id="seed-phrase" class="w-full p-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 mb-4" placeholder="Enter your 12-word phrase">
+
+      <button onclick="checkSeedPhrase()" class="w-full bg-blue-500 text-white p-2 rounded-md hover:bg-blue-600">Authorize</button>
+
+      <div id="editor" class="hidden mt-6">
+        <h2 class="text-xl font-bold mb-4">Edit Page</h2>
+        
+        <label for="page-title" class="block text-gray-700 mb-2">Page Title</label>
+        <input type="text" id="page-title" class="w-full p-2 border rounded-md mb-4">
+
+        <label for="meta-description" class="block text-gray-700 mb-2">Meta Description</label>
+        <input type="text" id="meta-description" class="w-full p-2 border rounded-md mb-4">
+
+        <label for="page-body" class="block text-gray-700 mb-2">Page Body</label>
+        <textarea id="page-body" class="w-full p-2 border rounded-md mb-4 h-32"></textarea>
+
+        <button onclick="saveChanges()" class="w-full bg-green-500 text-white p-2 rounded-md hover:bg-green-600">Save Changes</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/js/script.js"></script>
+</body>
+</html>
