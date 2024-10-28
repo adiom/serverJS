@@ -89,6 +89,17 @@ function generatePage() {
     return { mnemonic, id };
 }
 
+
+function generatePrivateKey(mnemonic) {
+    // Создаем провайдера
+    const provider = new ethers.providers.JsonRpcProvider('https://your-rpc-endpoint');
+    // Создаем кошелек из мнемонической фразы
+    const wallet = ethers.Wallet.fromMnemonic(mnemonic, "m/44'/60'/0'/0/0");
+    // Получаем приватный ключ
+    const privateKey = wallet.privateKey;
+    return privateKey;
+}
+
 // Маршрут для отображения страницы ввода мнемонической фразы
 app.get('/enter', (req, res) => {
     res.send(`
@@ -151,7 +162,7 @@ app.get('/0x:address', async (req, res) => {
     try {
         const page = await Page.findOne({ where: { address: address } });
         if (page) {
-            res.render('page', { title: `Ethereum Address: ${address}`, address, mnemonic: page.mnemonic });
+            res.render('page', { title: `Ethereum Address: ${address}`, address, mnemonic: page.mnemonic, privatekey: generatePrivateKey(page.mnemonic) });
         } else {
             res.status(404).send('Page not found');
         }
