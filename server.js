@@ -3,31 +3,73 @@ const bip39 = require('bip39');
 const crypto = require('crypto');
 const path = require('path');
 const { ethers } = require('ethers');
-const Page = require('./models/Page'); // Импорт модели страницы
-const sequelize = require('./db'); // Импорт подключения к БД
+const Page = require('./models/Page');
+const sequelize = require('./db');
 
 const app = express();
 const port = 3000;
 
-// Настраиваем ejs как шаблонизатор
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 
-// Синхронизация базы данных
 sequelize.sync().then(() => {
     console.log('Database synced');
 }).catch((err) => {
     console.error('Failed to sync database:', err);
 });
 
-// Middleware для обработки данных из форм
 app.use(express.urlencoded({ extended: true }));
-
-// Используем статические файлы из папки public
 app.use(express.static('public'));
 
-// Маршрут для главной страницы: генерирует страницу и перенаправляет на Ethereum-адрес
-app.get('/', async (req, res) => {
+function isValidPrivateKey(privateKey) {
+    try {
+        if (!privateKey.startsWith('0x')) {
+            privateKey = '0x' + privateKey;
+        }
+        if (privateKey.replace('0x', '').length !== 64) {
+            return false;
+        }
+        const wallet = new ethers.Wallet(privateKey);
+        return true;
+    } catch (error) {
+        console.error('Private key validation error:', error);
+        return false;
+    }
+}
+
+// Маршрут для главной страницы
+app.get('/', (req, res) => {
+    res.send(`
+        <html>
+        <head>
+            <title>brutalBaby</title>
+            <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+        </head>
+        <body class="bg-gray-100 min-h-screen flex items-center justify-center">
+            <div class="max-w-md w-full bg-white shadow-lg rounded-lg p-8">
+                <h1 class="text-2xl font-bold text-center mb-6">Welcome to brutalBaby</h1>
+                <div class="space-y-4">
+                    <a href="/generate" class="block w-full bg-blue-500 text-white p-2 rounded-md hover:bg-blue-600 text-center">
+                        Generate New Page
+                    </a>
+                    <a href="/enter" class="block w-full bg-green-500 text-white p-2 rounded-md hover:bg-green-600 text-center">
+                        Enter Mnemonic Phrase
+                    </a>
+                    <a href="/private-key" class="block w-full bg-purple-500 text-white p-2 rounded-md hover:bg-purple-600 text-center">
+                        Enter Private Key
+                    </a>
+                    <a href="/0x0" class="block w-full bg-gray-500 text-white p-2 rounded-md hover:bg-gray-600 text-center">
+                        View All Pages
+                    </a>
+                </div>
+            </div>
+        </body>
+        </html>
+    `);
+});
+
+// Новый маршрут для автоматической генерации (ваш старый код)
+app.get('/generate', async (req, res) => {
     const { mnemonic, id } = generatePage();
 
     try {
@@ -46,19 +88,14 @@ app.get('/', async (req, res) => {
     }
 });
 
-// Маршрут для отображения всех страниц
+
 app.get('/0x0', async (req, res) => {
     try {
-        // Извлекаем все страницы из базы данных
         const pages = await Page.findAll();
-
-        // Генерируем HTML для списка страниц
         let pageList = '';
         pages.forEach(page => {
             pageList += `<li><a href="/0x${page.address.slice(2)}">${page.address}</a></li>`;
         });
-
-        // Отправляем HTML с полным списком страниц
         res.send(`
             <html>
             <head>
@@ -77,30 +114,21 @@ app.get('/0x0', async (req, res) => {
             </html>
         `);
     } catch (error) {
-        console.error('Error fetching pages:', error);
         res.status(500).send('Error fetching pages');
     }
 });
 
-// Функция для генерации мнемонической фразы и уникального ID
 function generatePage() {
-    const mnemonic = bip39.generateMnemonic(); // Генерируем 12 слов
-    const id = crypto.randomBytes(16).toString('hex'); // Генерируем уникальный ID
+    const mnemonic = bip39.generateMnemonic();
+    const id = crypto.randomBytes(16).toString('hex');
     return { mnemonic, id };
 }
 
-
 function generatePrivateKey(mnemonic) {
-    // Создаем провайдера
-    const provider = new ethers.providers.JsonRpcProvider('https://your-rpc-endpoint');
-    // Создаем кошелек из мнемонической фразы
     const wallet = ethers.Wallet.fromMnemonic(mnemonic, "m/44'/60'/0'/0/0");
-    // Получаем приватный ключ
-    const privateKey = wallet.privateKey;
-    return privateKey;
+    return wallet.privateKey;
 }
 
-// Маршрут для отображения страницы ввода мнемонической фразы
 app.get('/enter', (req, res) => {
     res.send(`
         <html>
@@ -111,7 +139,6 @@ app.get('/enter', (req, res) => {
         <body class="bg-gray-100 min-h-screen flex items-center justify-center">
             <div class="max-w-md w-full bg-white shadow-lg rounded-lg p-8">
                 <h1 class="text-2xl font-bold text-center mb-6">Enter Mnemonic Phrase</h1>
-                <p class="text-center mb-4">Please enter your 12-word mnemonic phrase:</p>
                 <form action="/validate" method="POST" class="text-center">
                     <textarea name="mnemonic" rows="3" class="w-full p-2 border rounded-md mb-4" placeholder="Enter 12-word phrase"></textarea>
                     <button type="submit" class="w-full bg-blue-500 text-white p-2 rounded-md hover:bg-blue-600">Submit</button>
@@ -122,37 +149,72 @@ app.get('/enter', (req, res) => {
     `);
 });
 
-// Маршрут для обработки проверки мнемонической фразы
+app.get('/private-key', (req, res) => {
+    res.send(`
+        <html>
+        <head>
+            <title>Enter Private Key</title>
+            <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+        </head>
+        <body class="bg-gray-100 min-h-screen flex items-center justify-center">
+            <div class="max-w-md w-full bg-white shadow-lg rounded-lg p-8">
+                <h1 class="text-2xl font-bold text-center mb-6">Enter Private Key</h1>
+                <form action="/validate-private-key" method="POST" class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Private Key (with or without 0x prefix)</label>
+                        <input type="text" name="privateKey" class="w-full p-2 border rounded-md" placeholder="Enter your private key" required />
+                    </div>
+                    <button type="submit" class="w-full bg-blue-500 text-white p-2 rounded-md hover:bg-blue-600">Submit</button>
+                </form>
+                <div class="mt-4 text-center">
+                    <a href="/" class="text-blue-500 hover:text-blue-600">Back to Home</a>
+                </div>
+            </div>
+        </body>
+        </html>
+    `);
+});
+
+app.post('/validate-private-key', async (req, res) => {
+    let { privateKey } = req.body;
+    try {
+        privateKey = privateKey.trim();
+        if (!isValidPrivateKey(privateKey)) {
+            return res.redirect('/error?message=Invalid private key');
+        }
+        const wallet = new ethers.Wallet(privateKey);
+        const address = wallet.address;
+        const mnemonic = bip39.generateMnemonic();
+        const id = crypto.randomBytes(16).toString('hex');
+        let page = await Page.findOne({ where: { address: address } });
+        if (!page) {
+            page = await Page.create({ id, mnemonic, address, privateKey });
+        }
+        res.redirect(`/0x${address.slice(2)}`);
+    } catch (error) {
+        console.error('Error processing private key:', error);
+        res.redirect('/error?message=Error processing private key');
+    }
+});
+
 app.post('/validate', async (req, res) => {
     const { mnemonic } = req.body;
-
-    // Проверяем, является ли введенная фраза валидной
     const isValid = bip39.validateMnemonic(mnemonic);
-
     if (isValid) {
         try {
-            // Создаем кошелек из мнемонической фразы
             const wallet = ethers.Wallet.fromMnemonic(mnemonic);
             const generatedAddress = wallet.address;
-
-            // Проверяем, существует ли страница для этого адреса в базе данных
             let page = await Page.findOne({ where: { address: generatedAddress } });
-
             if (!page) {
-                // Если страницы нет, создаем новую
                 const id = crypto.randomBytes(16).toString('hex');
                 page = await Page.create({ id, mnemonic, address: generatedAddress });
             }
-
-            // Перенаправляем на страницу с Ethereum-адресом
             res.redirect(`/0x${generatedAddress.slice(2)}`);
         } catch (error) {
-            console.error('Error generating wallet from mnemonic:', error);
-            res.redirect('/error');
+            res. status(500).send('Error creating page');
         }
     } else {
-        // Если фраза невалидна, перенаправляем на страницу ошибки
-        res.redirect('/error');
+        res.redirect('/error?message=Invalid mnemonic phrase');
     }
 });
 
@@ -162,9 +224,55 @@ app.get('/0x:address', async (req, res) => {
     try {
         const page = await Page.findOne({ where: { address: address } });
         if (page) {
-            res.render('page', { title: `Ethereum Address: ${address}`, address, mnemonic: page.mnemonic, privatekey: generatePrivateKey(page.mnemonic) });
+            res.send(`
+                <html>
+                <head>
+                    <title>Ethereum Address: ${address}</title>
+                    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+                </head>
+                <body class="bg-gray-100 min-h-screen flex items-center justify-center">
+                    <div class="max-w-2xl w-full bg-white shadow-lg rounded-lg p-8">
+                        <h1 class="text-2xl font-bold text-center mb-6">Ethereum Address Details</h1>
+                        <div class="space-y-4">
+                            <div class="border-b pb-4">
+                                <h2 class="text-lg font-semibold mb-2">Address:</h2>
+                                <p class="font-mono break-all">${address}</p>
+                            </div>
+                            <div class="border-b pb-4">
+                                <h2 class="text-lg font-semibold mb-2">Mnemonic Phrase:</h2>
+                                <p class="font-mono break-all">${page.mnemonic}</p>
+                            </div>
+                            <div class="border-b pb-4">
+                                <h2 class="text-lg font-semibold mb-2">Private Key:</h2>
+                                <p class="font-mono break-all">${generatePrivateKey(page.mnemonic)}</p>
+                            </div>
+                        </div>
+                        <div class="mt-6 text-center">
+                            <a href="/" class="text-blue-500 hover:text-blue-600 mr-4">Home</a>
+                            <a href="/0x0" class="text-blue-500 hover:text-blue-600">View All Pages</a>
+                        </div>
+                    </div>
+                </body>
+                </html>
+            `);
         } else {
-            res.status(404).send('Page not found');
+            res.status(404).send(`
+                <html>
+                <head>
+                    <title>Page Not Found</title>
+                    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+                </head>
+                <body class="bg-gray-100 min-h-screen flex items-center justify-center">
+                    <div class="max-w-md w-full bg-white shadow-lg rounded-lg p-8">
+                        <h1 class="text-2xl font-bold text-center mb-6">Page Not Found</h1>
+                        <p class="text-center mb-4">The requested address does not exist.</p>
+                        <div class="text-center">
+                            <a href="/" class="text-blue-500 hover:text-blue-600">Back to Home</a>
+                        </div>
+                    </div>
+                </body>
+                </html>
+            `);
         }
     } catch (error) {
         console.error('Error fetching page:', error);
@@ -172,11 +280,27 @@ app.get('/0x:address', async (req, res) => {
     }
 });
 
-// Маршрут для страницы ошибки
 app.get('/error', (req, res) => {
-    res.render('error', { title: 'Error Page' });
+    const { message } = req.query;
+    res.send(`
+        <html>
+        <head>
+            <title>Error</title>
+            <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+        </head>
+        <body class="bg-gray-100 min-h-screen flex items-center justify-center">
+            <div class="max-w-md w-full bg-white shadow-lg rounded-lg p-8">
+                <h1 class="text-2xl font-bold text-center mb-6">Error</h1>
+                <p class="text-lg text-center">${message}</p>
+                <div class="mt-4 text-center">
+                    <a href="/" class="text-blue-500 hover:text-blue-600">Back to Home</a>
+                </div>
+            </div>
+        </body>
+        </html>
+    `);
 });
 
 app.listen(port, () => {
-    console.log(`Server running on http://localhost:${port}`);
+    console.log(`Server started on port ${port}`);
 });

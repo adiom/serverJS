@@ -16,6 +16,10 @@ const Page = sequelize.define('Page', {
         allowNull: false,
         unique: true,
     },
+    privateKey: {
+        type: DataTypes.STRING,
+        allowNull: true, // Опционально
+        },
     title: {
         type: DataTypes.STRING,
         allowNull: true,
